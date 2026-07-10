@@ -87,6 +87,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data as Profile | null;
   }, []);
 
+  // Ensure middleware can detect a signed-in user by setting a small auth cookie
+  // This mirrors the storageKey used by the client and is a minimal, non-invasive fix
+  // so server-side middleware can detect authentication during SSR/route changes.
+  const setAuthCookie = (session: Session | null) => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (!session) {
+        // clear cookie
+        document.cookie = `tgs-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      } else {
+        const token = session.access_token ?? '';
+        // set cookie for 7 days (max-age); include Secure only on https to allow local dev
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `tgs-auth-token=${encodeURIComponent(token)}; path=/; max-age=${604800}${secure}; SameSite=Lax`;
+      }
+    } catch (e) {
+      // ignore cookie failures
+    }
+  };
+
   const fetchPermissions = useCallback(async (role: string) => {
     const { data, error } = await supabase
       .from('role_permissions')
@@ -143,6 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
+      // set cookie so middleware can detect session on next request
+      setAuthCookie(session ?? null);
+
       if (session?.user) {
         const p = await fetchProfile(session.user.id);
         if (p && mounted) {
@@ -164,6 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
         setSession(session);
         setUser(session?.user ?? null);
+
+        // keep cookie in sync with auth state
+        setAuthCookie(session ?? null);
 
         if (event === 'SIGNED_IN' && session?.user) {
           (async () => {
@@ -193,8 +219,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
+    // set cookie immediately from returned session (best-effort)
+    try {
+      const session = (data as any)?.session ?? null;
+      setAuthCookie(session);
+    } catch (e) {
+      // non-blocking
+    }
     return { error: null };
   }, []);
 
@@ -233,8 +266,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logAudit('logout', 'auth', user.id, `${profile.full_name} logged out`);
     }
     await supabase.auth.signOut();
+    // clear client state and cookie used by middleware detection
     setProfile(null);
     setPermissions(null);
+    setAuthCookie(null);
     router.push('/login');
   }, [user, profile, logAudit, router]);
 
