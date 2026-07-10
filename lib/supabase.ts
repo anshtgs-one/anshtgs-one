@@ -11,3 +11,15 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'tgs-auth-token',
   },
 });
+
+// Agar server-side admin access chahiye tabhi ise use karein
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  }
+)
