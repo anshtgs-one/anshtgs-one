@@ -9,16 +9,16 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for Supabase auth cookie — the client stores the session under
-  // either the custom storageKey or the default sb-<ref>-auth-token name.
-  const cookieNames = [
-    'tgs-auth-token',
-    'sb-jtnqiwgymhmqptlawntx-auth-token',
-  ];
-  const hasAuthCookie = cookieNames.some(name => {
-    const cookie = req.cookies.get(name);
-    return !!cookie && cookie.value.length > 10;
-  });
+  // Check for Supabase auth cookie — accept the custom storageKey (`tgs-auth-token`)
+  // or any Supabase default cookie matching `sb-<project-ref>-auth-token`.
+  // Also accept a Bearer token in `Authorization` as a server-side fallback.
+  const cookieHeader = req.headers.get('cookie') || '';
+  const hasTgs = cookieHeader.includes('tgs-auth-token=');
+  const sbMatch = cookieHeader.match(/sb-[a-z0-9]+-auth-token=([^;]+)/i);
+  const hasSb = !!(sbMatch && sbMatch[1] && sbMatch[1].length > 10);
+  const authHeader = req.headers.get('authorization') || '';
+  const hasAuthHeader = authHeader.toLowerCase().startsWith('bearer ');
+  const hasAuthCookie = hasTgs || hasSb || hasAuthHeader;
 
   if (!hasAuthCookie) {
     const loginUrl = new URL('/login', req.url);
