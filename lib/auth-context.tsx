@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile, fetchPermissions]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -225,11 +225,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const session = (data as any)?.session ?? null;
       setAuthCookie(session);
+
+      // If we have a session immediately, optimistically set client state
+      // and refresh the profile so UI (and redirects) can react instantly.
+      if (session?.user) {
+        setSession(session);
+        setUser(session.user);
+        await refreshProfile();
+      }
     } catch (e) {
       // non-blocking
     }
     return { error: null };
-  }, []);
+  }, [refreshProfile]);
 
   const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({

@@ -40,6 +40,13 @@ export default function LoginPage() {
       setSubmitting(false);
     } else {
       toast.success('Welcome back!');
+      // Immediate redirect to dashboard to ensure user lands on the app.
+      // AuthProvider will still refresh profile in background and adjust role-based routing.
+      try {
+        router.replace('/dashboard');
+      } catch (e) {
+        // ignore
+      }
     }
   };
 

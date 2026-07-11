@@ -42,7 +42,7 @@ export function useSupabaseQuery<T>(
       setError(null);
     }
     setLoading(false);
-  }, [table, select, JSON.stringify(filters), order?.column, order?.ascending]);
+  }, [table, select, filters, order]);
 
   useEffect(() => {
     fetchData();

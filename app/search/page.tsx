@@ -164,7 +164,7 @@ function SearchContent() {
         {totalResults === 0 && query.trim() && (
           <Card className="p-12 text-center">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No results found for "{query}"</p>
+            <p className="text-sm text-muted-foreground">No results found for &quot;{query}&quot;</p>
           </Card>
         )}
 
